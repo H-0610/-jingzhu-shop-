@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: jingzhu-shop
+    runtime: node
+    region: singapore
+    plan: 0.5c-512mb
+    autoDeployTrigger: off
+    buildCommand: sha256sum -c SHA256SUMS && tar -xzf shop-source.tar.gz && node --check server.mjs
+    startCommand: node server.mjs
+    healthCheckPath: /healthz
+    disk:
+      name: shop-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATABASE_PATH
+        value: /var/data/shop.sqlite
+      - key: TRUST_PROXY_HOPS
+        value: "1"
+      - key: INITIAL_ADMIN_PASSWORD
+        generateValue: true
+
