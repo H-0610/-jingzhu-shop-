@@ -1,11 +1,54 @@
-# 景筑小铺 · 独立部署
+# 景筑小铺：免费试运行版本
 
-Node.js 24 + SQLite自助下单商城，支持按规格库存、独立卡密/固定内容/人工发货、订单查询与前后台自动同步。
+Node.js 24 + PostgreSQL。保留分规格库存、订单查询、人工核款后自动发货、每2秒商品同步。
+网站自身不要求ChatGPT账号、不设置地区白名单；实际地区可用性仍需外部网络验证。
 
-源码保存在shop-source.tar.gz中，构建时校验SHA256并解压，保持完整目录结构。源码包不包含真实商品、订单、收款信息或管理员凭据。首次部署是空店，正式营业前需完成私有数据迁移。
+## 部署与费用
 
-Render Blueprint：新加坡节点，0.5c-512mb实例，1GB持久盘。数据写入/var/data/shop.sqlite。初始管理员密码由Render生成，迁移后保留原凭据。自动部署已关闭。
+render.yaml使用新加坡Free Web Service，无付费磁盘或Render数据库；订单和图片写入独立Neon免费数据库。
+部署前必须确认Render账单未绑定付款方式，或存在已核实的零支出硬限制。Free计算套餐不保证流量和构建超额免费。
+未绑卡时，Render超额会暂停服务或构建。Neon必须保持Free套餐，不自动升级。
+Render空闲15分钟休眠，首次再访问可能等待约1分钟；Neon免费计算或流量额度用完可能暂停到下个周期。
+此方案适合试运行，不承诺全天候可用，也不承诺所有亚洲运营商均能访问。
 
-此配置包含收费资源，创建前需确认费用。商品付款采用静态收款码，需要商家核实到账后确认，系统才按规格发货。
+## 启动
 
-部署成功不表示已验证所有地区网络；正式分享前应进行目标用户网络访问和下单测试。
+需要Node.js 24。运行npm ci --omit=dev，然后node server.mjs。
+
+- DATABASE_URL：秘密PostgreSQL连接地址。Neon应用使用pooler连接，表结构初始化使用对应直连；强制验证TLS证书。
+- REQUIRE_POSTGRES=true：免费云端必须配置；缺少DATABASE_URL就拒绝启动，防止误用临时SQLite保存订单。
+- INITIAL_ADMIN_PASSWORD：首次空库初始化密码，12–128位；导入已有数据后沿用原密码摘要。
+- HOST=0.0.0.0；PORT由平台提供。
+- PUBLIC_BASE_URL：自定义域名时设置；Render默认读取RENDER_EXTERNAL_URL。
+- TRUST_PROXY_HOPS：默认0。受控代理后配置正确跳数；Render示例为1，部署时需核实。
+- DATABASE_PATH：仅限本地或自有持久磁盘的SQLite兼容模式，免费云端不使用。
+
+/healthz检查启动完成的进程，不反复查询数据库消耗空闲计算额度。数据库失效时业务请求返回503。
+
+## 私有数据迁移
+
+源码seed是空店，不含真实商品、订单、收款信息或管理员密码。
+完整备份格式：{"state":{"settings":{},"products":[],"orders":[]},"assets":[]}。
+必须保留adminPasswordHash、orderKeyHash、reservedCards、reservedContent和在用图片。
+切换前暂停旧入口新增订单，取得最终备份，避免两套库存同时销售。
+
+设置DATABASE_URL后运行：
+
+```
+node tools/postgres-backup.mjs import PRIVATE_BACKUP.json
+node tools/postgres-backup.mjs export NEW_PRIVATE_BACKUP.json
+```
+
+导入只接受空库，事务失败回滚；导出拒绝覆盖现有文件。
+备份、.env和密码不能放public目录或提交GitHub。
+SQLite导入兼容：node tools/import-state.mjs PRIVATE_BACKUP.json NEW_DATABASE.sqlite。
+
+## 验证
+
+npm test：本地PostgreSQL引擎、HTTP、迁移和防误配置检查。
+npm run test:cloud：使用.env.qa的TEST_DATABASE_URL，仅连接独立QA分支，不删除云端数据。
+已验证双服务并发抢库存、规格内容隔离、旧编辑拒绝覆盖、确认幂等、取消返还一次和重启查单。
+上线仍需目标手机、电脑、微信内置浏览器实测；静态收款码必须商家核实到账后才发货。
+当前保留约1.8MB聚合商品/订单状态上限，接近上限前应归档升级。
+
+官方说明：https://render.com/docs/free 、https://neon.com/docs/introduction/plans
