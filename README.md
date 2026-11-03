@@ -43,7 +43,15 @@ node tools/postgres-backup.mjs export NEW_PRIVATE_BACKUP.json
 备份、.env和密码不能放public目录或提交GitHub。
 SQLite导入兼容：node tools/import-state.mjs PRIVATE_BACKUP.json NEW_DATABASE.sqlite。
 
-## 验证
+## 规格库存与采购合计
+
+每个规格分别选择发货方式。独立内容模式每行一件，录入20条不同内容即可销售20件；数字库存自动随内容条数变化，不能用一个数字代替缺少的货品内容。
+可在规格下点击“导入 TXT 追加库存”，导入UTF-8文本（每行一件，1MB以内）；空行忽略，重复内容跳过，保存商品后才更新前台。删除剩余内容会相应减少可售库存。
+购买20件时只预留该规格的20条内容，确认到账后交付全部20条；其他规格不扣减，不混用内容。
+固定内容和人工交付模式可直接修改库存数字。
+前台卡片与列表会按输入数量立即更新总价，并显示件数、单价；数量大于1时高亮该规格。后台价格或库存更新后，前台自动重新计算，结算金额仍由服务端核定。
+
+## 测试与运行限制
 
 npm test：本地PostgreSQL引擎、HTTP、迁移和防误配置检查。
 npm run test:cloud：使用.env.qa的TEST_DATABASE_URL，仅连接独立QA分支，不删除云端数据。
